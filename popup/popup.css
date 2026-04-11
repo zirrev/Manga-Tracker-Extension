@@ -1,0 +1,363 @@
+/* AniList Manga Tracker — Popup Styles */
+
+:root {
+  --bg: #1a1b2e;
+  --bg-panel: #16213e;
+  --bg-panel-alt: #0f3460;
+  --accent: #02a9ff;
+  --accent-hover: #0596e5;
+  --accent-muted: rgba(2, 169, 255, 0.15);
+  --text: #e8eaf0;
+  --text-muted: #8b92b2;
+  --text-hint: #565f85;
+  --success: #3ddc84;
+  --error: #e63946;
+  --warn: #f4a261;
+  --border: rgba(255, 255, 255, 0.07);
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 360px;
+  min-height: 200px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---- Utilities ---- */
+.hidden { display: none !important; }
+
+/* ---- Header ---- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 5px;
+  letter-spacing: -0.5px;
+}
+
+.app-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.icon-btn:hover { color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* ---- Screens ---- */
+.screen { padding: 12px; }
+
+/* ---- Login ---- */
+.login-card {
+  text-align: center;
+  padding: 20px 8px;
+}
+.login-desc {
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ---- Panels ---- */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.panel-inner { padding: 12px 14px; }
+
+/* ---- State messages ---- */
+.state-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 6px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.state-icon { font-size: 22px; margin-bottom: 2px; }
+.hint { color: var(--text-hint); font-size: 11px; }
+.warn { color: var(--warn); }
+
+/* ---- Detection panel ---- */
+.detected-meta { margin-bottom: 6px; }
+
+.site-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.manga-title-row { margin-bottom: 4px; }
+
+.manga-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label {
+  font-size: 11px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.chapter-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ---- Progress panel ---- */
+.progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+.progress-row + .progress-row {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 7px;
+}
+
+.progress-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.score-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warn);
+}
+
+/* ---- Action row ---- */
+.action-row {
+  margin-bottom: 8px;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn-full { width: 100%; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.btn-outline:hover { background: var(--accent-muted); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+.btn-ghost:hover { color: var(--text); background: var(--border); }
+
+.btn-sm { font-size: 12px; padding: 5px 12px; }
+
+/* ---- Feedback banner ---- */
+.feedback {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.feedback.success { background: rgba(61, 220, 132, 0.12); color: var(--success); }
+.feedback.error   { background: rgba(230, 57, 70, 0.12);  color: var(--error); }
+
+/* ---- Add to list prompt ---- */
+.panel-prompt .panel-inner { padding: 10px 14px; }
+.panel-prompt p { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+.prompt-actions { display: flex; gap: 8px; }
+
+/* ---- Sync Log ---- */
+.panel-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 14px;
+}
+.panel-toggle:hover { color: var(--text); }
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+}
+.panel-toggle[aria-expanded="false"] .chevron {
+  transform: rotate(180deg);
+}
+
+.log-list {
+  padding: 0 14px 10px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.log-list .hint { padding: 4px 0; }
+
+.log-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  gap: 6px;
+}
+.log-entry:first-child { border-top: none; }
+
+.log-entry-info {
+  flex: 1;
+  min-width: 0;
+}
+.log-entry-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 11px;
+}
+.log-entry-detail {
+  color: var(--text-hint);
+  font-size: 10px;
+}
+
+.log-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.log-dot.success { background: var(--success); }
+.log-dot.error   { background: var(--error); }
+
+/* ---- Spinner ---- */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

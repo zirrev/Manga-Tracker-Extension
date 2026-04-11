@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "AniList Manga Tracker",
+  "version": "1.0.0",
+  "description": "Automatically track your manga reading progress on AniList",
+
+  "permissions": [
+    "storage",
+    "identity",
+    "activeTab",
+    "scripting",
+    "notifications",
+    "tabs"
+  ],
+
+  "host_permissions": [
+    "https://weebcentral.com/*",
+    "https://mangadex.org/*",
+    "https://mangaplus.shueisha.co.jp/*",
+    "https://graphql.anilist.co/*",
+    "https://anilist.co/*",
+    "https://api.mangadex.org/*"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://weebcentral.com/*",
+        "https://mangadex.org/*",
+        "https://mangaplus.shueisha.co.jp/*"
+      ],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "AniList Manga Tracker"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["settings/settings.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

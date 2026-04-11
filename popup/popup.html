@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AniList Manga Tracker</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- ==============================
+       HEADER
+  =============================== -->
+  <header class="header">
+    <div class="header-left">
+      <span class="logo">AL</span>
+      <span class="app-name">Manga Tracker</span>
+    </div>
+    <div class="header-right">
+      <span id="auth-status" class="auth-status"></span>
+      <button id="settings-btn" class="icon-btn" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==============================
+       LOGIN SCREEN
+  =============================== -->
+  <section id="login-screen" class="screen hidden">
+    <div class="login-card">
+      <p class="login-desc">Connect your AniList account to automatically track your manga progress.</p>
+      <button id="login-btn" class="btn btn-primary">
+        Login with AniList
+      </button>
+    </div>
+  </section>
+
+  <!-- ==============================
+       MAIN SCREEN
+  =============================== -->
+  <section id="main-screen" class="screen hidden">
+
+    <!-- Detection Panel -->
+    <div class="panel" id="detection-panel">
+      <div class="panel-inner">
+        <div id="not-on-site" class="state-msg hidden">
+          <span class="state-icon">📖</span>
+          <p>Open a supported manga site to start tracking.</p>
+          <p class="hint">WeebCentral · MangaDex · MangaPlus</p>
+        </div>
+
+        <div id="not-chapter" class="state-msg hidden">
+          <span class="state-icon">🔍</span>
+          <p>No chapter detected on this page.</p>
+        </div>
+
+        <div id="chapter-detected" class="hidden">
+          <div class="detected-meta">
+            <span id="site-badge" class="site-badge"></span>
+          </div>
+          <div class="manga-title-row">
+            <span id="detected-title" class="manga-title">—</span>
+          </div>
+          <div class="chapter-row">
+            <span class="label">Reading</span>
+            <span id="detected-chapter" class="chapter-num">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Panel -->
+    <div class="panel" id="progress-panel">
+      <div class="panel-inner">
+        <div id="progress-loading" class="state-msg hidden">
+          <span class="spinner"></span>
+        </div>
+        <div id="progress-not-found" class="state-msg hidden">
+          <p class="warn">Not found on AniList.</p>
+          <button id="add-to-list-btn" class="btn btn-outline btn-sm">Add to List</button>
+        </div>
+        <div id="progress-data" class="hidden">
+          <div class="progress-row">
+            <span class="label">Progress</span>
+            <span id="progress-value" class="progress-value">— / —</span>
+          </div>
+          <div class="progress-row" id="score-row">
+            <span class="label">Score</span>
+            <span id="score-value" class="score-value">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mark as Read -->
+    <div class="action-row">
+      <button id="mark-read-btn" class="btn btn-primary btn-full" disabled>
+        <span id="mark-read-text">Mark as Read</span>
+        <span id="mark-read-spinner" class="spinner hidden"></span>
+      </button>
+    </div>
+
+    <!-- Inline feedback -->
+    <div id="feedback" class="feedback hidden"></div>
+
+    <!-- Add to List Prompt -->
+    <div id="add-to-list-prompt" class="panel panel-prompt hidden">
+      <p>This manga isn't in your AniList. Add it?</p>
+      <div class="prompt-actions">
+        <button id="confirm-add-btn" class="btn btn-primary btn-sm">Add</button>
+        <button id="dismiss-add-btn" class="btn btn-ghost btn-sm">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- Sync Log -->
+    <div class="panel panel-log" id="log-panel">
+      <button class="panel-toggle" id="log-toggle" aria-expanded="true">
+        <span>Recent Syncs</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="18 15 12 9 6 15"/>
+        </svg>
+      </button>
+      <div id="log-list" class="log-list">
+        <p id="log-empty" class="hint">No syncs yet.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>
