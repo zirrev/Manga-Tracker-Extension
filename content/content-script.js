@@ -56,8 +56,9 @@
 
     if (site === SITES.WEEBCENTRAL) {
       // WeebCentral page title format: "Chapter N | Series Name | Weeb Central"
+      //   or the shorter form:        "# N | Series Name | Weeb Central"
       // Extract both chapter number AND series name from the title in one pass.
-      const ptMatch = document.title.match(/Chapter\s+([\d.]+)\s*\|\s*(.+?)\s*\|/i);
+      const ptMatch = document.title.match(/(?:Chapter|Ch\.?|#)\s*([\d.]+)\s*\|\s*(.+?)\s*\|/i);
       if (ptMatch) {
         chapter = parseFloat(ptMatch[1]);
         title = ptMatch[2].trim();
@@ -112,7 +113,7 @@
       ];
       for (const src of sources) {
         if (!src) continue;
-        const m = src.match(/(?:Chapter|Ch\.?|Episode|Ep\.?)\s*([\d.]+)/i);
+        const m = src.match(/(?:Chapter|Ch\.?|Episode|Ep\.?|#)\s*([\d.]+)/i);
         if (m) { chapter = parseFloat(m[1]); break; }
       }
     }
@@ -183,6 +184,9 @@
         chapterId,
       };
       notifyPopup();
+      // The user may have already scrolled past the threshold before chapter info
+      // was resolved (e.g. fast reader, lazy-loaded images). Check immediately.
+      handleScroll();
     } else {
       currentChapterInfo = { title: null, chapter: null, siteKey: site, chapterId };
       notifyPopup();
@@ -193,7 +197,7 @@
   // Scroll tracking
   // ---------------------------------------------------------------------------
 
-  const SCROLL_THRESHOLD = 0.80;
+  const SCROLL_THRESHOLD = 0.90;
 
   function getScrollDepth() {
     const scrollY = window.scrollY || window.pageYOffset;
@@ -235,6 +239,24 @@
     const url = window.location.href;
     if (url !== lastUrl) {
       lastUrl = url;
+
+      // WeebCentral uses infinite scroll: the URL advances to the next chapter
+      // only after the user has scrolled through the entire current chapter.
+      // If the scroll threshold hasn't fired yet, treat the navigation itself
+      // as confirmation that the chapter was fully read.
+      if (
+        site === SITES.WEEBCENTRAL &&
+        !scrollTriggered &&
+        currentChapterInfo?.title &&
+        currentChapterInfo.chapter !== null
+      ) {
+        scrollTriggered = true;
+        chrome.runtime.sendMessage({
+          type: 'SCROLL_THRESHOLD_REACHED',
+          ...currentChapterInfo,
+        });
+      }
+
       resetForNewPage();
       resolveChapterInfo();
     }
@@ -292,6 +314,22 @@
   // ---------------------------------------------------------------------------
 
   window.addEventListener('scroll', handleScroll, { passive: true });
+
+  // Full-page navigation (non-SPA): fire sync before the page unloads so the
+  // chapter isn't lost when the browser destroys this script context.
+  window.addEventListener('beforeunload', () => {
+    if (
+      site === SITES.WEEBCENTRAL &&
+      !scrollTriggered &&
+      currentChapterInfo?.title &&
+      currentChapterInfo.chapter !== null
+    ) {
+      chrome.runtime.sendMessage({
+        type: 'SCROLL_THRESHOLD_REACHED',
+        ...currentChapterInfo,
+      });
+    }
+  });
 
   // Wait briefly for SPA pages to render before first parse
   setTimeout(resolveChapterInfo, 1000);

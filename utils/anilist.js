@@ -61,6 +61,15 @@ const SAVE_MEDIA_LIST_ENTRY_MUTATION = `
   }
 `;
 
+const SAVE_SCORE_MUTATION = `
+  mutation SaveScore($mediaId: Int!, $score: Float!) {
+    SaveMediaListEntry(mediaId: $mediaId, score: $score) {
+      id
+      score
+    }
+  }
+`;
+
 // ---------------------------------------------------------------------------
 // Core fetch helper
 // ---------------------------------------------------------------------------
@@ -154,6 +163,18 @@ export async function updateProgress(mediaId, progress, accessToken, status = 'C
     { mediaId, progress, status },
     accessToken
   );
+  return data.SaveMediaListEntry;
+}
+
+/**
+ * Update the user's score for a manga entry.
+ * @param {number} mediaId
+ * @param {number} score  Score value (respects the user's AniList scoring format)
+ * @param {string} accessToken
+ * @returns {Promise<object>}
+ */
+export async function updateScore(mediaId, score, accessToken) {
+  const data = await graphql(SAVE_SCORE_MUTATION, { mediaId, score }, accessToken);
   return data.SaveMediaListEntry;
 }
 

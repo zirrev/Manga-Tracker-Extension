@@ -7,6 +7,7 @@
     'toggle-show-progress':  'settings.popup.showProgress',
     'toggle-show-score':     'settings.popup.showScore',
     'toggle-show-log':       'settings.popup.showLog',
+    'toggle-avatar-circle':  'settings.popup.avatarCircle',
     'toggle-notify-success': 'settings.notifications.success',
     'toggle-notify-error':   'settings.notifications.error',
   };
@@ -70,16 +71,21 @@
   // Settings toggles
   // ---------------------------------------------------------------------------
 
+  // Settings that default to false (opt-in) rather than true (opt-out)
+  const OPT_IN_KEYS = new Set([
+    'settings.notifications.success',
+    'settings.notifications.error',
+    'settings.popup.avatarCircle',
+  ]);
+
   function applySettings(settings) {
     for (const [toggleId, storageKey] of Object.entries(SETTING_KEYS)) {
       const el = document.getElementById(toggleId);
-      if (el) el.checked = settings[storageKey] !== false; // default true
+      if (!el) continue;
+      el.checked = OPT_IN_KEYS.has(storageKey)
+        ? settings[storageKey] === true
+        : settings[storageKey] !== false;
     }
-    // Notifications default to false
-    const notifySuccess = document.getElementById('toggle-notify-success');
-    const notifyError   = document.getElementById('toggle-notify-error');
-    if (notifySuccess) notifySuccess.checked = settings['settings.notifications.success'] === true;
-    if (notifyError)   notifyError.checked   = settings['settings.notifications.error'] === true;
   }
 
   // Attach change listeners

@@ -88,19 +88,102 @@ body {
   white-space: nowrap;
 }
 
-.icon-btn {
+/* ---- Avatar menu ---- */
+.avatar-menu {
+  position: relative;
+}
+
+.avatar-btn {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
-  padding: 2px;
+  padding: 0;
   display: flex;
   align-items: center;
-  border-radius: 4px;
-  transition: color 0.15s;
+  justify-content: center;
+  border-radius: 50%;
+  transition: opacity 0.15s;
 }
-.icon-btn:hover { color: var(--text); }
-.icon-btn svg { width: 16px; height: 16px; }
+.avatar-btn:hover { opacity: 0.85; }
+
+.avatar-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.avatar-fallback {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Applied when "Round profile picture" setting is on */
+.avatar-img.avatar-circle    { border-radius: 50%; object-fit: cover; }
+.avatar-fallback.avatar-circle { border-radius: 50%; }
+
+.avatar-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 176px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 9px 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dropdown-username {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.dropdown-item:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+}
+
+.dropdown-item-danger { color: var(--error); }
+.dropdown-item-danger:hover {
+  background: rgba(230, 57, 70, 0.1);
+  color: var(--error);
+}
 
 /* ---- Screens ---- */
 .screen { padding: 12px; }
@@ -207,11 +290,61 @@ body {
   color: var(--text);
 }
 
+.score-display {
+  display: flex;
+  align-items: center;
+}
+
 .score-value {
   font-size: 13px;
   font-weight: 600;
   color: var(--warn);
 }
+
+.score-clickable {
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(244, 162, 97, 0.4);
+  transition: border-color 0.15s;
+}
+.score-clickable:hover { border-bottom-color: var(--warn); }
+
+.score-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.score-input {
+  width: 52px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 5px;
+  outline: none;
+  /* hide browser spinner arrows */
+  -moz-appearance: textfield;
+}
+.score-input::-webkit-outer-spin-button,
+.score-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.score-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  font-family: var(--font);
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s;
+}
+.score-reset { color: var(--text-hint); }
+.score-reset:hover { background: rgba(255,255,255,0.06); color: var(--text); }
 
 /* ---- Action row ---- */
 .action-row {

@@ -1,13 +1,8 @@
 // AniList Manga Tracker — Service Worker (Manifest V3)
 // Handles: OAuth, AniList API calls, storage management, notifications
 
-import { getCurrentUser, searchManga, getMediaListEntry, updateProgress } from '../utils/anilist.js';
-
-// ---------------------------------------------------------------------------
-// Constants — replace CLIENT_ID with your AniList API client ID
-// ---------------------------------------------------------------------------
-
-const ANILIST_CLIENT_ID = '38967';
+import { getCurrentUser, searchManga, getMediaListEntry, updateProgress, updateScore } from '../utils/anilist.js';
+import { ANILIST_CLIENT_ID } from '../config.js';
 const MAX_SYNC_LOG_ENTRIES = 10;
 
 // ---------------------------------------------------------------------------
@@ -39,6 +34,7 @@ async function getSettings() {
     'settings.popup.showProgress': true,
     'settings.popup.showScore': true,
     'settings.popup.showLog': true,
+    'settings.popup.avatarCircle': false,
   };
   const stored = await getStorage(Object.keys(defaults));
   return { ...defaults, ...stored };
@@ -391,6 +387,19 @@ async function handleMessage(message, sender) {
     case 'RESOLVE_MANGADEX_CHAPTER': {
       const result = await resolveMangaDexChapter(message.chapterId);
       return result || { error: 'resolution_failed' };
+    }
+
+    // ---- Score update ----
+    case 'SAVE_SCORE': {
+      const { mediaId, score } = message;
+      const token = await getToken();
+      if (!token) return { error: 'not_authenticated' };
+      try {
+        const entry = await updateScore(mediaId, score, token);
+        return { success: true, score: entry.score };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
     }
 
     // ---- Badge reset ----

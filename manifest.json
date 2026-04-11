@@ -44,6 +44,11 @@
     "default_title": "AniList Manga Tracker"
   },
 
+  "options_ui": {
+    "page": "settings/settings.html",
+    "open_in_tab": true
+  },
+
   "web_accessible_resources": [
     {
       "resources": ["settings/settings.html"],

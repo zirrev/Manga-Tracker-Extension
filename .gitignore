@@ -1,0 +1,15 @@
+# Private configuration — copy config.example.js → config.js and fill in your values
+config.js
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencies (if you ever add a build step)
+node_modules/

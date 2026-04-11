@@ -12,8 +12,15 @@
   const loginScreen     = $('login-screen');
   const mainScreen      = $('main-screen');
   const loginBtn        = $('login-btn');
-  const settingsBtn     = $('settings-btn');
-  const authStatus      = $('auth-status');
+
+  // Avatar / account dropdown
+  const avatarBtn        = $('avatar-btn');
+  const avatarImg        = $('avatar-img');
+  const avatarFallback   = $('avatar-fallback');
+  const avatarDropdown   = $('avatar-dropdown');
+  const dropdownUsername = $('dropdown-username');
+  const dropdownSettings = $('dropdown-settings');
+  const dropdownLogout   = $('dropdown-logout');
 
   // Detection
   const notOnSite       = $('not-on-site');
@@ -30,6 +37,9 @@
   const progressValue     = $('progress-value');
   const scoreValue        = $('score-value');
   const scoreRow          = $('score-row');
+  const scoreEdit         = $('score-edit');
+  const scoreInput        = $('score-input');
+  const scoreResetBtn     = $('score-reset-btn');
 
   // Actions
   const markReadBtn     = $('mark-read-btn');
@@ -101,9 +111,22 @@
 
   function renderAuth() {
     if (authState.authenticated) {
-      authStatus.textContent = authState.name || 'Logged in';
+      const name = authState.name || '';
+      dropdownUsername.textContent = name || 'AniList User';
+      if (authState.avatar) {
+        avatarImg.src = authState.avatar;
+        avatarImg.classList.remove('hidden');
+        avatarFallback.classList.add('hidden');
+      } else {
+        avatarFallback.textContent = name ? name[0].toUpperCase() : '?';
+        avatarFallback.classList.remove('hidden');
+        avatarImg.classList.add('hidden');
+      }
     } else {
-      authStatus.textContent = 'Not logged in';
+      avatarFallback.textContent = '?';
+      avatarFallback.classList.remove('hidden');
+      avatarImg.classList.add('hidden');
+      dropdownUsername.textContent = '';
     }
   }
 
@@ -112,10 +135,13 @@
     const showProgress = settings['settings.popup.showProgress'] !== false;
     const showScore    = settings['settings.popup.showScore'] !== false;
     const showLog      = settings['settings.popup.showLog'] !== false;
+    const avatarCircle = settings['settings.popup.avatarCircle'] === true;
 
     $('progress-panel').classList.toggle('hidden', !showProgress);
     scoreRow.classList.toggle('hidden', !showScore);
     logPanel.classList.toggle('hidden', !showLog);
+    avatarImg.classList.toggle('avatar-circle', avatarCircle);
+    avatarFallback.classList.toggle('avatar-circle', avatarCircle);
   }
 
   // ---------------------------------------------------------------------------
@@ -203,16 +229,12 @@
       listEntry  = result.listEntry;
 
       // Display progress
-      const totalChapters = mangaMedia.chapters ?? '?';
       const currentProgress = listEntry?.progress ?? 0;
-      progressValue.textContent = `Ch. ${currentProgress} / ${totalChapters}`;
+      progressValue.textContent = mangaMedia.chapters
+        ? `Ch. ${currentProgress} / ${mangaMedia.chapters}`
+        : `Ch. ${currentProgress} / Ongoing`;
 
-      const score = listEntry?.score;
-      if (score && score > 0) {
-        scoreValue.textContent = `${score} / 10`;
-      } else {
-        scoreValue.textContent = '—';
-      }
+      renderScore(listEntry?.score);
 
       showProgressState('data');
 
@@ -286,8 +308,9 @@
       showFeedback(`Ch. ${Math.floor(chapterInfo.chapter)} synced to AniList!`, 'success');
       setMarkReadDisabled('Already up to date');
       if (progressData && !progressData.classList.contains('hidden')) {
-        const totalChapters = mangaMedia?.chapters ?? '?';
-        progressValue.textContent = `Ch. ${Math.floor(chapterInfo.chapter)} / ${totalChapters}`;
+        progressValue.textContent = mangaMedia?.chapters
+          ? `Ch. ${Math.floor(chapterInfo.chapter)} / ${mangaMedia.chapters}`
+          : `Ch. ${Math.floor(chapterInfo.chapter)}`;
       }
       await loadSyncLog();
     } else if (result.alreadyUpToDate) {
@@ -306,6 +329,63 @@
       showFeedback(result.error || 'Sync failed.', 'error');
     }
   });
+
+  // ---------------------------------------------------------------------------
+  // Score editing
+  // ---------------------------------------------------------------------------
+
+  function openScoreEdit() {
+    if (!mangaMedia) return;
+    const current = listEntry?.score;
+    scoreInput.value = (current && current > 0) ? current : '';
+    scoreValue.classList.add('hidden');
+    scoreEdit.classList.remove('hidden');
+    scoreInput.focus();
+    scoreInput.select();
+  }
+
+  function closeScoreEdit() {
+    scoreEdit.classList.add('hidden');
+    scoreValue.classList.remove('hidden');
+  }
+
+  function renderScore(score) {
+    if (score && score > 0) {
+      scoreValue.textContent = `${score} / 10`;
+    } else {
+      scoreValue.textContent = '—';
+    }
+  }
+
+  async function saveScore(score) {
+    closeScoreEdit();
+    scoreValue.textContent = '…';
+    const result = await sendMessage({ type: 'SAVE_SCORE', mediaId: mangaMedia.id, score });
+    if (result.success) {
+      if (listEntry) listEntry.score = result.score;
+      renderScore(result.score);
+      showFeedback('Score saved!', 'success');
+    } else {
+      renderScore(listEntry?.score);
+      showFeedback(result.error || 'Failed to save score.', 'error');
+    }
+  }
+
+  scoreValue.addEventListener('click', openScoreEdit);
+
+  scoreInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeScoreEdit(); return; }
+    if (e.key !== 'Enter') return;
+    const raw = parseFloat(scoreInput.value);
+    if (isNaN(raw) || raw < 1 || raw > 10) {
+      scoreInput.style.borderColor = 'var(--error)';
+      setTimeout(() => { scoreInput.style.borderColor = ''; }, 800);
+      return;
+    }
+    saveScore(raw);
+  });
+
+  scoreResetBtn.addEventListener('click', () => saveScore(0));
 
   // ---------------------------------------------------------------------------
   // Add to list prompt
@@ -405,10 +485,30 @@
   // Settings
   // ---------------------------------------------------------------------------
 
-  settingsBtn.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage
-      ? chrome.runtime.openOptionsPage()
-      : chrome.tabs.create({ url: chrome.runtime.getURL('settings/settings.html') });
+  // Avatar dropdown toggle
+  avatarBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !avatarDropdown.classList.contains('hidden');
+    avatarDropdown.classList.toggle('hidden', isOpen);
+    avatarBtn.setAttribute('aria-expanded', String(!isOpen));
+  });
+
+  document.addEventListener('click', () => {
+    avatarDropdown.classList.add('hidden');
+    avatarBtn.setAttribute('aria-expanded', 'false');
+  });
+
+  dropdownSettings.addEventListener('click', () => {
+    avatarDropdown.classList.add('hidden');
+    chrome.runtime.openOptionsPage();
+  });
+
+  dropdownLogout.addEventListener('click', async () => {
+    avatarDropdown.classList.add('hidden');
+    await sendMessage({ type: 'AUTH_LOGOUT' });
+    authState = { authenticated: false };
+    renderAuth();
+    showScreen('login');
   });
 
   // ---------------------------------------------------------------------------
@@ -459,4 +559,12 @@
 
   // Load sync log on open
   await loadSyncLog();
+
+  // Content script resolves chapter info asynchronously (1-3s after page load).
+  // If the popup opened before that resolved, listen for the update and refresh.
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'CHAPTER_INFO_UPDATE' && authState?.authenticated) {
+      handleChapterInfo(message);
+    }
+  });
 })();
