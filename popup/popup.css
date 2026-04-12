@@ -88,6 +88,24 @@ body {
   white-space: nowrap;
 }
 
+/* ---- Icon button ---- */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: color 0.15s, background 0.15s;
+}
+.icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.spin { animation: spin 0.7s linear infinite; }
+
 /* ---- Avatar menu ---- */
 .avatar-menu {
   position: relative;

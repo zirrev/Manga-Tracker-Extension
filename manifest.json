@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "description": "Automatically track your manga reading progress on AniList",
 
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAshfXEhRsWscULbJLBk81gWoLDXodx+2SjYManO7IH+twfIYcp7WxBYsz3Mk2toz3PFxKN+AZ2/rRo7KehGqT8dnK1+06aTlfk/SJDau8s/llKLRTSnpCPdkkuy39YvkNcptfjdRLhOFw3ExXq9KKeR9zvQK4HjKziazCXsl18NAshJcfx9v/nKvKi1MauGvN1Durqe6l84nVRuXuLCLeM+EVZ8se0d63oM0O07Gm9Q/o40BmedQejSRqi9Fr4vqNYJ/5TRAbl7jXzIugKzmlrkvy53G4dpegrx3hsOTuY5kKiIxbpdj9XJYMKZoqyfM/NBM2fnbBpXYpWA2ao1+SSwIDAQAB",
+
   "permissions": [
     "storage",
     "identity",

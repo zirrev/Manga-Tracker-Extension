@@ -13,6 +13,10 @@
   const mainScreen      = $('main-screen');
   const loginBtn        = $('login-btn');
 
+  // Refresh
+  const refreshBtn  = $('refresh-btn');
+  const refreshIcon = $('refresh-icon');
+
   // Avatar / account dropdown
   const avatarBtn        = $('avatar-btn');
   const avatarImg        = $('avatar-img');
@@ -537,6 +541,18 @@
     const expanded = logToggle.getAttribute('aria-expanded') === 'true';
     logToggle.setAttribute('aria-expanded', String(!expanded));
     logList.classList.toggle('hidden', expanded);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Refresh button
+  // ---------------------------------------------------------------------------
+
+  refreshBtn.addEventListener('click', async () => {
+    refreshBtn.disabled = true;
+    refreshIcon.classList.add('spin');
+    await loadCurrentTab();
+    refreshIcon.classList.remove('spin');
+    refreshBtn.disabled = false;
   });
 
   // ---------------------------------------------------------------------------

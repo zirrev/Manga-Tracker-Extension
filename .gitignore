@@ -1,5 +1,5 @@
-# Private configuration — copy config.example.js → config.js and fill in your values
-config.js
+# Extension signing key — never commit the private key
+extension_key.pem
 
 # OS
 .DS_Store

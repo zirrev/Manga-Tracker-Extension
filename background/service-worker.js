@@ -2,8 +2,15 @@
 // Handles: OAuth, AniList API calls, storage management, notifications
 
 import { getCurrentUser, searchManga, getMediaListEntry, updateProgress, updateScore } from '../utils/anilist.js';
-import { ANILIST_CLIENT_ID } from '../config.js';
+
+const ANILIST_CLIENT_ID = '38967';
 const MAX_SYNC_LOG_ENTRIES = 10;
+
+// ---------------------------------------------------------------------------
+// In-memory auth state (not persisted — cleared on browser close / SW restart)
+// ---------------------------------------------------------------------------
+
+let authSession = null; // { accessToken, userId, userName, userAvatar }
 
 // ---------------------------------------------------------------------------
 // Storage helpers
@@ -18,13 +25,11 @@ async function setStorage(items) {
 }
 
 async function getToken() {
-  const { 'auth.accessToken': token } = await getStorage(['auth.accessToken']);
-  return token || null;
+  return authSession?.accessToken || null;
 }
 
 async function getUserId() {
-  const { 'auth.userId': userId } = await getStorage(['auth.userId']);
-  return userId || null;
+  return authSession?.userId || null;
 }
 
 async function getSettings() {
@@ -102,12 +107,12 @@ async function launchOAuthFlow() {
 
         try {
           const user = await getCurrentUser(accessToken);
-          await setStorage({
-            'auth.accessToken': accessToken,
-            'auth.userId': user.id,
-            'auth.userName': user.name,
-            'auth.userAvatar': user.avatar?.medium || null,
-          });
+          authSession = {
+            accessToken,
+            userId: user.id,
+            userName: user.name,
+            userAvatar: user.avatar?.medium || null,
+          };
           resolve({ accessToken, user });
         } catch (err) {
           reject(err);
@@ -118,12 +123,7 @@ async function launchOAuthFlow() {
 }
 
 async function logout() {
-  await chrome.storage.local.remove([
-    'auth.accessToken',
-    'auth.userId',
-    'auth.userName',
-    'auth.userAvatar',
-  ]);
+  authSession = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -300,16 +300,18 @@ async function handleMessage(message, sender) {
     }
 
     case 'AUTH_STATUS': {
-      const token = await getToken();
-      if (!token) return { authenticated: false };
-      const { 'auth.userName': name, 'auth.userAvatar': avatar, 'auth.userId': userId } =
-        await getStorage(['auth.userName', 'auth.userAvatar', 'auth.userId']);
-      return { authenticated: true, name, avatar, userId };
+      if (!authSession) return { authenticated: false };
+      return {
+        authenticated: true,
+        name: authSession.userName,
+        avatar: authSession.userAvatar,
+        userId: authSession.userId,
+      };
     }
 
     // ---- Chapter detection + sync (from content script) ----
     case 'SCROLL_THRESHOLD_REACHED': {
-      const { title, chapter, siteKey, tabId } = message;
+      const { title, chapter, siteKey } = message;
       const result = await syncChapter({ title, chapter, siteKey });
 
       if (result.success) {
