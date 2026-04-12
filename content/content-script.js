@@ -19,6 +19,7 @@
     [SITES.WEEBCENTRAL]: {
       domain: 'weebcentral.com',
       chapterPattern: /weebcentral\.com\/chapters\/([A-Z0-9]+)/i,
+      seriesPattern: /weebcentral\.com\/series\/([A-Z0-9]+)/i,
     },
     [SITES.MANGADEX]: {
       domain: 'mangadex.org',
@@ -41,9 +42,26 @@
     return site ? SITE_PATTERNS[site].chapterPattern.test(url) : false;
   }
 
+  function isSeriesPage(url, site) {
+    return site ? (SITE_PATTERNS[site].seriesPattern?.test(url) ?? false) : false;
+  }
+
   function extractChapterId(url, site) {
     const match = url.match(SITE_PATTERNS[site]?.chapterPattern);
     return match ? match[1] : null;
+  }
+
+  function extractSeriesTitleFromDOM(site) {
+    if (site === SITES.WEEBCENTRAL) {
+      // WeebCentral series page: title is in the first h1
+      const h1 = document.querySelector('h1');
+      if (h1) return h1.textContent.trim();
+
+      // Fallback: page title often "Series Name | Weeb Central"
+      const titleMatch = document.title.match(/^(.+?)\s*[|–\-]/);
+      if (titleMatch) return titleMatch[1].trim();
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -139,7 +157,13 @@
     const url = window.location.href;
 
     if (!isChapterPage(url, site)) {
-      currentChapterInfo = null;
+      // Check if this is a series/manga detail page so we can show progress
+      if (isSeriesPage(url, site)) {
+        const seriesTitle = extractSeriesTitleFromDOM(site);
+        currentChapterInfo = { title: seriesTitle, chapter: null, siteKey: site, chapterId: null, isSeriesPage: true };
+      } else {
+        currentChapterInfo = null;
+      }
       notifyPopup();
       return;
     }
@@ -239,24 +263,6 @@
     const url = window.location.href;
     if (url !== lastUrl) {
       lastUrl = url;
-
-      // WeebCentral uses infinite scroll: the URL advances to the next chapter
-      // only after the user has scrolled through the entire current chapter.
-      // If the scroll threshold hasn't fired yet, treat the navigation itself
-      // as confirmation that the chapter was fully read.
-      if (
-        site === SITES.WEEBCENTRAL &&
-        !scrollTriggered &&
-        currentChapterInfo?.title &&
-        currentChapterInfo.chapter !== null
-      ) {
-        scrollTriggered = true;
-        chrome.runtime.sendMessage({
-          type: 'SCROLL_THRESHOLD_REACHED',
-          ...currentChapterInfo,
-        });
-      }
-
       resetForNewPage();
       resolveChapterInfo();
     }
@@ -286,11 +292,13 @@
   // ---------------------------------------------------------------------------
 
   function notifyPopup() {
+    const url = window.location.href;
     chrome.runtime.sendMessage({
       type: 'CHAPTER_INFO_UPDATE',
       chapterInfo: currentChapterInfo,
       site,
-      isChapterPage: isChapterPage(window.location.href, site),
+      isChapterPage: isChapterPage(url, site),
+      isSeriesPage: isSeriesPage(url, site),
     }).catch(() => {}); // popup may not be open — ignore
   }
 
@@ -300,10 +308,12 @@
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'GET_CHAPTER_INFO') {
+      const url = window.location.href;
       sendResponse({
         chapterInfo: currentChapterInfo,
         site,
-        isChapterPage: isChapterPage(window.location.href, site),
+        isChapterPage: isChapterPage(url, site),
+        isSeriesPage: isSeriesPage(url, site),
       });
     }
     return false;
@@ -314,22 +324,6 @@
   // ---------------------------------------------------------------------------
 
   window.addEventListener('scroll', handleScroll, { passive: true });
-
-  // Full-page navigation (non-SPA): fire sync before the page unloads so the
-  // chapter isn't lost when the browser destroys this script context.
-  window.addEventListener('beforeunload', () => {
-    if (
-      site === SITES.WEEBCENTRAL &&
-      !scrollTriggered &&
-      currentChapterInfo?.title &&
-      currentChapterInfo.chapter !== null
-    ) {
-      chrome.runtime.sendMessage({
-        type: 'SCROLL_THRESHOLD_REACHED',
-        ...currentChapterInfo,
-      });
-    }
-  });
 
   // Wait briefly for SPA pages to render before first parse
   setTimeout(resolveChapterInfo, 1000);

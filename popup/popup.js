@@ -26,9 +26,13 @@
   const notOnSite       = $('not-on-site');
   const notChapter      = $('not-chapter');
   const chapterDetected = $('chapter-detected');
+  const seriesPageEl    = $('series-page');
   const siteBadge       = $('site-badge');
+  const seriesSiteBadge = $('series-site-badge');
   const detectedTitle   = $('detected-title');
   const detectedChapter = $('detected-chapter');
+  const seriesTitle     = $('series-title');
+  const seriesProgress  = $('series-progress');
 
   // Progress
   const progressLoading   = $('progress-loading');
@@ -163,7 +167,7 @@
   }
 
   function handleChapterInfo(response) {
-    const { site, isChapterPage, chapterInfo: info } = response || {};
+    const { site, isChapterPage, isSeriesPage, chapterInfo: info } = response || {};
 
     chapterInfo = info ? { ...info, isChapterPage } : null;
 
@@ -173,6 +177,22 @@
       setMarkReadDisabled('No supported site detected');
       return;
     }
+
+    // Series/chapter-select page: show manga name + progress in detection panel only
+    if (isSeriesPage && info?.title) {
+      showDetectionState('series-page');
+      $('progress-panel').classList.add('hidden');
+      seriesSiteBadge.textContent = SITE_LABELS[site] || site;
+      seriesTitle.textContent = info.title;
+      seriesTitle.title = info.title;
+      seriesProgress.textContent = '…';
+      setMarkReadDisabled('Open a chapter to mark as read');
+      loadSeriesProgress(info.title);
+      return;
+    }
+
+    // Restore progress panel visibility (respecting user setting)
+    applySettings();
 
     if (!isChapterPage || !info) {
       showDetectionState('not-chapter');
@@ -200,6 +220,7 @@
     notOnSite.classList.toggle('hidden', state !== 'not-on-site');
     notChapter.classList.toggle('hidden', state !== 'not-chapter');
     chapterDetected.classList.toggle('hidden', state !== 'detected');
+    seriesPageEl.classList.toggle('hidden', state !== 'series-page');
   }
 
   // ---------------------------------------------------------------------------
@@ -250,6 +271,41 @@
     } catch (err) {
       showProgressState('not-found');
       setMarkReadDisabled('Error loading data');
+    }
+  }
+
+  // Load AniList progress for a series page (no current chapter being read)
+  async function loadSeriesProgress(title) {
+    showProgressState('loading');
+
+    try {
+      const result = await sendMessage({ type: 'GET_MANGA_INFO', title });
+
+      if (result.error === 'not_authenticated') {
+        showScreen('login');
+        return;
+      }
+
+      if (result.error === 'not_found' || !result.media) {
+        mangaMedia = null;
+        listEntry = null;
+        seriesProgress.textContent = 'Not on AniList';
+        showProgressState('not-found');
+        return;
+      }
+
+      mangaMedia = result.media;
+      listEntry  = result.listEntry;
+
+      const currentProgress = listEntry?.progress ?? 0;
+      const totalChapters   = mangaMedia.chapters;
+
+      seriesProgress.textContent = totalChapters
+        ? `Ch. ${currentProgress} / ${totalChapters}`
+        : `Ch. ${currentProgress} / Ongoing`;
+
+    } catch {
+      seriesProgress.textContent = 'Error loading';
     }
   }
 

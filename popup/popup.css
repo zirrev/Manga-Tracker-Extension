@@ -228,6 +228,16 @@ body {
 /* ---- Detection panel ---- */
 .detected-meta { margin-bottom: 6px; }
 
+.series-page-label {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  vertical-align: middle;
+}
+
 .site-badge {
   display: inline-block;
   padding: 2px 7px;
