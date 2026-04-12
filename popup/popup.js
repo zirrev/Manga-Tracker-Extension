@@ -182,6 +182,7 @@
     if (isSeriesPage && info?.title) {
       showDetectionState('series-page');
       $('progress-panel').classList.add('hidden');
+      $('action-row').classList.add('hidden');
       seriesSiteBadge.textContent = SITE_LABELS[site] || site;
       seriesTitle.textContent = info.title;
       seriesTitle.title = info.title;
@@ -191,7 +192,8 @@
       return;
     }
 
-    // Restore progress panel visibility (respecting user setting)
+    // Restore panels hidden on series pages
+    $('action-row').classList.remove('hidden');
     applySettings();
 
     if (!isChapterPage || !info) {
