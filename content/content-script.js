@@ -307,16 +307,30 @@
   // ---------------------------------------------------------------------------
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    const url = window.location.href;
+
     if (message.type === 'GET_CHAPTER_INFO') {
-      const url = window.location.href;
       sendResponse({
         chapterInfo: currentChapterInfo,
         site,
         isChapterPage: isChapterPage(url, site),
         isSeriesPage: isSeriesPage(url, site),
       });
+      return false;
     }
-    return false;
+
+    if (message.type === 'REFRESH_CHAPTER_INFO') {
+      // Re-run detection and return the fresh result once resolved.
+      resolveChapterInfo().then(() => {
+        sendResponse({
+          chapterInfo: currentChapterInfo,
+          site,
+          isChapterPage: isChapterPage(url, site),
+          isSeriesPage: isSeriesPage(url, site),
+        });
+      });
+      return true; // keep message channel open for async response
+    }
   });
 
   // ---------------------------------------------------------------------------

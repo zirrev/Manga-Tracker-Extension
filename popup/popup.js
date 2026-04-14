@@ -49,6 +49,10 @@
   const scoreInput        = $('score-input');
   const scoreResetBtn     = $('score-reset-btn');
 
+  // Inline start-tracking buttons (next to title)
+  const inlineTrackBtn = $('inline-track-btn');
+  const seriesTrackBtn = $('series-track-btn');
+
   // Actions
   const markReadBtn     = $('mark-read-btn');
   const markReadText    = $('mark-read-text');
@@ -183,16 +187,22 @@
     }
 
     // Series/chapter-select page: show manga name + progress in detection panel only
-    if (isSeriesPage && info?.title) {
+    if (isSeriesPage) {
       showDetectionState('series-page');
       $('progress-panel').classList.add('hidden');
       $('action-row').classList.add('hidden');
       seriesSiteBadge.textContent = SITE_LABELS[site] || site;
-      seriesTitle.textContent = info.title;
-      seriesTitle.title = info.title;
-      seriesProgress.textContent = '…';
       setMarkReadDisabled('Open a chapter to mark as read');
-      loadSeriesProgress(info.title);
+      seriesTrackBtn.classList.add('hidden');
+      $('series-progress-row').classList.add('hidden');
+      if (info?.title) {
+        seriesTitle.textContent = info.title;
+        seriesTitle.title = info.title;
+        loadSeriesProgress(info.title);
+      } else {
+        seriesTitle.textContent = '…';
+        seriesProgress.textContent = '…';
+      }
       return;
     }
 
@@ -255,22 +265,38 @@
       mangaMedia = result.media;
       listEntry  = result.listEntry;
 
-      // Display progress
-      const currentProgress = listEntry?.progress ?? 0;
+      if (!listEntry) {
+        // Not tracking yet — hide progress panel, show inline Start Tracking button
+        $('progress-panel').classList.add('hidden');
+        inlineTrackBtn.classList.remove('hidden');
+        $('action-row').classList.add('hidden');
+        return;
+      }
+
+      // Tracked — restore progress panel visibility (respects show-progress setting)
+      if (settings?.['settings.popup.showProgress'] !== false) {
+        $('progress-panel').classList.remove('hidden');
+      }
+
       progressValue.textContent = mangaMedia.chapters
-        ? `Ch. ${currentProgress} / ${mangaMedia.chapters}`
-        : `Ch. ${currentProgress} / Ongoing`;
+        ? `Ch. ${listEntry.progress} / ${mangaMedia.chapters}`
+        : `Ch. ${listEntry.progress} / Ongoing`;
 
-      renderScore(listEntry?.score);
-
+      renderScore(listEntry.score);
       showProgressState('data');
 
-      // Determine mark-as-read button state
+      // Determine button state
       if (currentChapter == null) {
+        inlineTrackBtn.classList.add('hidden');
+        $('action-row').classList.remove('hidden');
         setMarkReadDisabled('Chapter not detected');
-      } else if (listEntry && listEntry.progress >= Math.floor(currentChapter)) {
+      } else if (listEntry.progress >= Math.floor(currentChapter)) {
+        inlineTrackBtn.classList.add('hidden');
+        $('action-row').classList.remove('hidden');
         setMarkReadDisabled('Already up to date');
       } else {
+        inlineTrackBtn.classList.add('hidden');
+        $('action-row').classList.remove('hidden');
         setMarkReadEnabled();
       }
 
@@ -295,13 +321,22 @@
       if (result.error === 'not_found' || !result.media) {
         mangaMedia = null;
         listEntry = null;
-        seriesProgress.textContent = 'Not on AniList';
+        seriesTrackBtn.classList.add('hidden');
+        $('series-progress-row').classList.add('hidden');
         showProgressState('not-found');
         return;
       }
 
       mangaMedia = result.media;
       listEntry  = result.listEntry;
+
+      if (!listEntry) {
+        seriesTrackBtn.classList.remove('hidden');
+        $('series-progress-row').classList.add('hidden');
+      } else {
+        seriesTrackBtn.classList.add('hidden');
+        $('series-progress-row').classList.remove('hidden');
+      }
 
       const currentProgress = listEntry?.progress ?? 0;
       const totalChapters   = mangaMedia.chapters;
@@ -312,6 +347,7 @@
 
     } catch {
       seriesProgress.textContent = 'Error loading';
+      seriesTrackBtn.classList.add('hidden');
     }
   }
 
@@ -325,6 +361,7 @@
   function resetProgress() {
     mangaMedia = null;
     listEntry = null;
+    inlineTrackBtn.classList.add('hidden');
     showProgressState('loading');
     progressLoading.classList.add('hidden');
   }
@@ -350,6 +387,44 @@
     markReadText.classList.toggle('hidden', loading);
     markReadSpinner.classList.toggle('hidden', !loading);
   }
+
+  // ---------------------------------------------------------------------------
+  // Start Tracking (inline buttons next to title)
+  // ---------------------------------------------------------------------------
+
+  async function startTracking(chapter) {
+    if (!mangaMedia || !chapterInfo) return;
+    inlineTrackBtn.disabled = true;
+    seriesTrackBtn.disabled = true;
+    hideFeedback();
+
+    const result = await sendMessage({
+      type: 'ADD_TO_LIST',
+      mediaId: mangaMedia.id,
+      chapter: chapter ?? 0,
+      title: chapterInfo.title,
+      siteKey: chapterInfo.siteKey,
+    });
+
+    inlineTrackBtn.disabled = false;
+    seriesTrackBtn.disabled = false;
+
+    if (result.success) {
+      const ch = Math.floor(chapter ?? 0);
+      showFeedback(ch > 0 ? `Started tracking at Ch. ${ch}!` : 'Added to your list!', 'success');
+      if (chapterInfo.isChapterPage) {
+        await loadMangaProgress(chapterInfo.title, chapterInfo.chapter);
+      } else {
+        await loadSeriesProgress(chapterInfo.title);
+      }
+      await loadSyncLog();
+    } else {
+      showFeedback(result.error || 'Failed to start tracking.', 'error');
+    }
+  }
+
+  inlineTrackBtn.addEventListener('click', () => startTracking(chapterInfo?.chapter));
+  seriesTrackBtn.addEventListener('click', () => startTracking(null));
 
   markReadBtn.addEventListener('click', async () => {
     if (!chapterInfo?.title || chapterInfo.chapter == null) return;
@@ -379,7 +454,7 @@
       showFeedback('Already up to date on AniList.', 'success');
       setMarkReadDisabled('Already up to date');
     } else if (result.notInList) {
-      // Show add-to-list prompt
+      // Fallback: show prompt (shouldn't normally reach here)
       pendingAdd = {
         mediaId: result.media?.id,
         title: chapterInfo.title,
@@ -550,7 +625,15 @@
   refreshBtn.addEventListener('click', async () => {
     refreshBtn.disabled = true;
     refreshIcon.classList.add('spin');
-    await loadCurrentTab();
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'REFRESH_CHAPTER_INFO' });
+        handleChapterInfo(response);
+      } catch {
+        handleChapterInfo({ site: null, isChapterPage: false, chapterInfo: null });
+      }
+    }
     refreshIcon.classList.remove('spin');
     refreshBtn.disabled = false;
   });

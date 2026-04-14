@@ -7,10 +7,31 @@ const ANILIST_CLIENT_ID = '38967';
 const MAX_SYNC_LOG_ENTRIES = 10;
 
 // ---------------------------------------------------------------------------
-// In-memory auth state (not persisted — cleared on browser close / SW restart)
+// Auth state — persisted to storage so it survives service worker restarts
 // ---------------------------------------------------------------------------
 
 let authSession = null; // { accessToken, userId, userName, userAvatar }
+
+async function saveAuthSession(session) {
+  authSession = session;
+  await chrome.storage.local.set({ authSession: session });
+}
+
+async function clearAuthSession() {
+  authSession = null;
+  await chrome.storage.local.remove('authSession');
+}
+
+async function restoreAuthSession() {
+  const { authSession: stored } = await chrome.storage.local.get('authSession');
+  if (stored?.accessToken) {
+    authSession = stored;
+  }
+}
+
+// Restore on every service worker startup.
+// Store the promise so message handlers can await it before checking authSession.
+const authReady = restoreAuthSession();
 
 // ---------------------------------------------------------------------------
 // Storage helpers
@@ -25,10 +46,12 @@ async function setStorage(items) {
 }
 
 async function getToken() {
+  await authReady;
   return authSession?.accessToken || null;
 }
 
 async function getUserId() {
+  await authReady;
   return authSession?.userId || null;
 }
 
@@ -107,12 +130,12 @@ async function launchOAuthFlow() {
 
         try {
           const user = await getCurrentUser(accessToken);
-          authSession = {
+          await saveAuthSession({
             accessToken,
             userId: user.id,
             userName: user.name,
             userAvatar: user.avatar?.medium || null,
-          };
+          });
           resolve({ accessToken, user });
         } catch (err) {
           reject(err);
@@ -123,7 +146,7 @@ async function launchOAuthFlow() {
 }
 
 async function logout() {
-  authSession = null;
+  await clearAuthSession();
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +323,7 @@ async function handleMessage(message, sender) {
     }
 
     case 'AUTH_STATUS': {
+      await authReady;
       if (!authSession) return { authenticated: false };
       return {
         authenticated: true,
@@ -320,7 +344,9 @@ async function handleMessage(message, sender) {
           'AniList Updated',
           `${title} — Ch. ${Math.floor(chapter)} synced`
         );
-      } else if (result.error) {
+      } else if (result.error && result.error !== 'not_found' && !result.notInList) {
+        // Only surface real failures — not_found and notInList are expected
+        // states for manga the user hasn't started tracking yet.
         setBadge('!', '#E63946');
         await showNotification('Sync Failed', result.error || 'Unknown error', 'error');
       }
