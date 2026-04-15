@@ -250,7 +250,7 @@
     showProgressState('loading');
 
     try {
-      const result = await sendMessage({ type: 'GET_MANGA_INFO', title });
+      const result = await sendMessage({ type: 'GET_MANGA_INFO', title, chapter: currentChapter ?? null });
 
       if (result.error === 'not_authenticated') {
         showScreen('login');

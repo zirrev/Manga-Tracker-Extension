@@ -1,7 +1,7 @@
 // AniList Manga Tracker — Service Worker (Manifest V3)
 // Handles: OAuth, AniList API calls, storage management, notifications
 
-import { getCurrentUser, searchManga, updateProgress, updateScore, getMediaListEntry } from '../utils/anilist.js';
+import { getCurrentUser, searchManga, searchMangaAll, pickBestMedia, updateProgress, updateScore, getMediaListEntry } from '../utils/anilist.js';
 
 const ANILIST_CLIENT_ID = '38967';
 const MAX_SYNC_LOG_ENTRIES = 10;
@@ -167,8 +167,12 @@ async function syncChapter({ title, chapter, siteKey }) {
 
   const chapterInt = Math.floor(chapter);
 
-  // 1. Find manga on AniList (mediaListEntry is included in the same query)
-  const media = await searchManga(title, token);
+  // 1. Find manga on AniList — search all results and pick the best match.
+  //    chapterInt is used to eliminate one-shots / short series that can't
+  //    possibly be the manga currently being read (e.g. a 1-chapter one-shot
+  //    when we're on chapter 150 of the ongoing series).
+  const allResults = await searchMangaAll(title, token);
+  const media = pickBestMedia(allResults, chapterInt);
   if (!media) {
     return { success: false, error: 'not_found', title };
   }
@@ -383,15 +387,18 @@ async function handleMessage(message, sender) {
 
     // ---- AniList data fetch (for popup) ----
     case 'GET_MANGA_INFO': {
-      const { title } = message;
+      const { title, chapter: chapterHint = null } = message;
       const token = await getToken();
       const userId = await getUserId();
 
-      console.log('[GET_MANGA_INFO] title:', title, '| userId:', userId, '| hasToken:', !!token);
+      console.log('[GET_MANGA_INFO] title:', title, '| chapterHint:', chapterHint, '| userId:', userId, '| hasToken:', !!token);
 
       if (!token || !userId) return { error: 'not_authenticated' };
 
-      const media = await searchManga(title, token);
+      // Search all results and pick the best match using tracking status and
+      // chapter count — avoids picking a one-shot over the ongoing series.
+      const allResults = await searchMangaAll(title, token);
+      const media = pickBestMedia(allResults, chapterHint != null ? Math.floor(chapterHint) : null);
       console.log('[GET_MANGA_INFO] media found:', media?.id, media?.title?.english || media?.title?.romaji, '| mediaListEntry:', media?.mediaListEntry);
 
       if (!media) return { error: 'not_found' };

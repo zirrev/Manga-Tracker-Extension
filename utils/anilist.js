@@ -34,6 +34,37 @@ const SEARCH_MANGA_QUERY = `
   }
 `;
 
+// Returns multiple results so we can pick the best match (e.g. prefer the one
+// the user is already tracking when there are similarly-named manga).
+const SEARCH_MANGA_PAGE_QUERY = `
+  query SearchMangaAll($search: String!) {
+    Page(perPage: 10) {
+      media(search: $search, type: MANGA, isAdult: false) {
+        id
+        title {
+          romaji
+          english
+          native
+          userPreferred
+        }
+        chapters
+        status
+        coverImage {
+          medium
+          color
+        }
+        siteUrl
+        mediaListEntry {
+          id
+          status
+          progress
+          score
+        }
+      }
+    }
+  }
+`;
+
 const GET_MEDIA_LIST_ENTRY_QUERY = `
   query GetMediaListEntry($mediaId: Int!, $userId: Int!) {
     MediaList(mediaId: $mediaId, userId: $userId) {
@@ -135,6 +166,63 @@ export async function searchManga(title, accessToken = null) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Search for manga by title and return all results (up to 10).
+ * Used to disambiguate when multiple manga share a similar name.
+ * @param {string} title
+ * @param {string} [accessToken]
+ * @returns {Promise<object[]>} Array of Media objects (may be empty)
+ */
+export async function searchMangaAll(title, accessToken = null) {
+  try {
+    const data = await graphql(SEARCH_MANGA_PAGE_QUERY, { search: title }, accessToken);
+    return data.Page?.media || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Given an array of AniList Media results for the same search term, pick the
+ * best match using two heuristics in order:
+ *
+ * 1. Prefer results the user is already tracking (mediaListEntry != null).
+ * 2. If a chapterHint is provided (e.g. the chapter page we're currently on),
+ *    eliminate results whose known chapter count is less than the hint —
+ *    a one-shot with 1 chapter cannot be the manga you're reading at ch. 150.
+ * 3. Fall back to the first result if nothing else differentiates.
+ *
+ * @param {object[]} results   Array from searchMangaAll
+ * @param {number|null} chapterHint  Current chapter being read, or null
+ * @returns {object|null}
+ */
+export function pickBestMedia(results, chapterHint = null) {
+  if (!results || results.length === 0) return null;
+  if (results.length === 1) return results[0];
+
+  // Apply chapter-count filter first: drop results whose total chapters are
+  // known AND less than the current chapter (they can't possibly be right).
+  let candidates = results;
+  if (chapterHint != null && chapterHint > 0) {
+    const compatible = results.filter(m => m.chapters == null || m.chapters >= chapterHint);
+    if (compatible.length > 0) candidates = compatible;
+  }
+
+  // Among remaining candidates prefer the one(s) the user is tracking.
+  const tracked = candidates.filter(m => m.mediaListEntry != null);
+  if (tracked.length === 1) return tracked[0];
+  if (tracked.length > 1) {
+    // Multiple tracked — still apply chapter-count tiebreaker if available.
+    // Prefer ongoing (chapters == null) over finished series when ambiguous.
+    const ongoing = tracked.filter(m => m.chapters == null);
+    if (ongoing.length === 1) return ongoing[0];
+    return tracked[0]; // give up and take first tracked
+  }
+
+  // Nothing tracked — best we can do is first candidate.
+  return candidates[0];
 }
 
 /**
