@@ -57,6 +57,9 @@
   const markReadBtn     = $('mark-read-btn');
   const markReadText    = $('mark-read-text');
   const markReadSpinner = $('mark-read-spinner');
+  const markPrevBtn     = $('mark-prev-btn');
+  const markPrevText    = $('mark-prev-text');
+  const markPrevSpinner = $('mark-prev-spinner');
   const feedbackEl      = $('feedback');
 
   // Add-to-list prompt
@@ -290,14 +293,22 @@
         inlineTrackBtn.classList.add('hidden');
         $('action-row').classList.remove('hidden');
         setMarkReadDisabled('Chapter not detected');
+        setMarkPrevHidden();
       } else if (listEntry.progress >= Math.floor(currentChapter)) {
         inlineTrackBtn.classList.add('hidden');
         $('action-row').classList.remove('hidden');
         setMarkReadDisabled('Already up to date');
+        setMarkPrevHidden();
       } else {
         inlineTrackBtn.classList.add('hidden');
         $('action-row').classList.remove('hidden');
         setMarkReadEnabled();
+        const prevChapter = Math.floor(currentChapter) - 1;
+        if (prevChapter > listEntry.progress) {
+          setMarkPrevEnabled(prevChapter);
+        } else {
+          setMarkPrevHidden();
+        }
       }
 
     } catch (err) {
@@ -362,6 +373,7 @@
     mangaMedia = null;
     listEntry = null;
     inlineTrackBtn.classList.add('hidden');
+    setMarkPrevHidden();
     showProgressState('loading');
     progressLoading.classList.add('hidden');
   }
@@ -386,6 +398,24 @@
     markReadBtn.disabled = loading;
     markReadText.classList.toggle('hidden', loading);
     markReadSpinner.classList.toggle('hidden', !loading);
+  }
+
+  function setMarkPrevEnabled(prevChapter) {
+    markPrevBtn.classList.remove('hidden');
+    markPrevBtn.disabled = false;
+    markPrevBtn.title = '';
+    markPrevText.textContent = `Mark Previous as Read (up to Ch. ${prevChapter})`;
+  }
+
+  function setMarkPrevHidden() {
+    markPrevBtn.classList.add('hidden');
+    markPrevBtn.disabled = true;
+  }
+
+  function setMarkPrevLoading(loading) {
+    markPrevBtn.disabled = loading;
+    markPrevText.classList.toggle('hidden', loading);
+    markPrevSpinner.classList.toggle('hidden', !loading);
   }
 
   // ---------------------------------------------------------------------------
@@ -444,6 +474,7 @@
     if (result.success) {
       showFeedback(`Ch. ${Math.floor(chapterInfo.chapter)} synced to AniList!`, 'success');
       setMarkReadDisabled('Already up to date');
+      setMarkPrevHidden();
       if (progressData && !progressData.classList.contains('hidden')) {
         progressValue.textContent = mangaMedia?.chapters
           ? `Ch. ${Math.floor(chapterInfo.chapter)} / ${mangaMedia.chapters}`
@@ -453,6 +484,7 @@
     } else if (result.alreadyUpToDate) {
       showFeedback('Already up to date on AniList.', 'success');
       setMarkReadDisabled('Already up to date');
+      setMarkPrevHidden();
     } else if (result.notInList) {
       // Fallback: show prompt (shouldn't normally reach here)
       pendingAdd = {
@@ -462,6 +494,42 @@
         siteKey: chapterInfo.siteKey,
       };
       addToListPrompt.classList.remove('hidden');
+    } else {
+      showFeedback(result.error || 'Sync failed.', 'error');
+    }
+  });
+
+  markPrevBtn.addEventListener('click', async () => {
+    if (!chapterInfo?.title || chapterInfo.chapter == null) return;
+    const prevChapter = Math.floor(chapterInfo.chapter) - 1;
+    if (prevChapter <= 0) return;
+
+    setMarkPrevLoading(true);
+    hideFeedback();
+
+    const result = await sendMessage({
+      type: 'MARK_AS_READ',
+      title: chapterInfo.title,
+      chapter: prevChapter,
+      siteKey: chapterInfo.siteKey,
+    });
+
+    setMarkPrevLoading(false);
+    markPrevText.textContent = `Mark Previous as Read (up to Ch. ${prevChapter})`;
+
+    if (result.success) {
+      showFeedback(`Caught up to Ch. ${prevChapter} on AniList!`, 'success');
+      setMarkPrevHidden();
+      if (listEntry) listEntry.progress = prevChapter;
+      if (progressData && !progressData.classList.contains('hidden')) {
+        progressValue.textContent = mangaMedia?.chapters
+          ? `Ch. ${prevChapter} / ${mangaMedia.chapters}`
+          : `Ch. ${prevChapter}`;
+      }
+      await loadSyncLog();
+    } else if (result.alreadyUpToDate) {
+      showFeedback('Already up to date on AniList.', 'success');
+      setMarkPrevHidden();
     } else {
       showFeedback(result.error || 'Sync failed.', 'error');
     }

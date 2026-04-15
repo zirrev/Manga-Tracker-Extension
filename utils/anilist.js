@@ -24,6 +24,12 @@ const SEARCH_MANGA_QUERY = `
         color
       }
       siteUrl
+      mediaListEntry {
+        id
+        status
+        progress
+        score
+      }
     }
   }
 `;

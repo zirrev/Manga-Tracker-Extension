@@ -43,7 +43,10 @@
   }
 
   function isSeriesPage(url, site) {
-    return site ? (SITE_PATTERNS[site].seriesPattern?.test(url) ?? false) : false;
+    if (!site) return false;
+    // Any page on a supported site that isn't a chapter page is treated as a
+    // potential series/browse page so detection is always attempted.
+    return !isChapterPage(url, site);
   }
 
   function extractChapterId(url, site) {
@@ -53,7 +56,16 @@
 
   function extractSeriesTitleFromDOM(site) {
     if (site === SITES.WEEBCENTRAL) {
-      // WeebCentral series page: title is in the first h1
+      // Primary: extract title from the URL slug (/series/ID/Blue-Box → "Blue Box").
+      // This is more reliable than the H1, which often contains extra text nodes
+      // (status badges, chapter counts, etc.) that corrupt the AniList search.
+      const urlMatch = window.location.pathname.match(/\/series\/[^/]+\/([^/]+)/);
+      if (urlMatch?.[1]) {
+        const urlTitle = decodeURIComponent(urlMatch[1]).replace(/-/g, ' ').trim();
+        if (urlTitle) return urlTitle;
+      }
+
+      // Fallback: title is in the first h1
       const h1 = document.querySelector('h1');
       if (h1) return h1.textContent.trim();
 
@@ -320,8 +332,13 @@
     }
 
     if (message.type === 'REFRESH_CHAPTER_INFO') {
-      // Re-run detection and return the fresh result once resolved.
-      resolveChapterInfo().then(() => {
+      // Re-run detection. If no title was found on the first pass (DOM may still
+      // be rendering), wait briefly and try once more before responding.
+      resolveChapterInfo().then(async () => {
+        if (!currentChapterInfo?.title && isSeriesPage(url, site)) {
+          await new Promise(r => setTimeout(r, 800));
+          await resolveChapterInfo();
+        }
         sendResponse({
           chapterInfo: currentChapterInfo,
           site,

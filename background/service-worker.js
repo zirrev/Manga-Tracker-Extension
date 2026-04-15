@@ -1,7 +1,7 @@
 // AniList Manga Tracker — Service Worker (Manifest V3)
 // Handles: OAuth, AniList API calls, storage management, notifications
 
-import { getCurrentUser, searchManga, getMediaListEntry, updateProgress, updateScore } from '../utils/anilist.js';
+import { getCurrentUser, searchManga, updateProgress, updateScore, getMediaListEntry } from '../utils/anilist.js';
 
 const ANILIST_CLIENT_ID = '38967';
 const MAX_SYNC_LOG_ENTRIES = 10;
@@ -167,14 +167,15 @@ async function syncChapter({ title, chapter, siteKey }) {
 
   const chapterInt = Math.floor(chapter);
 
-  // 1. Find manga on AniList
+  // 1. Find manga on AniList (mediaListEntry is included in the same query)
   const media = await searchManga(title, token);
   if (!media) {
     return { success: false, error: 'not_found', title };
   }
 
-  // 2. Get current list entry
-  const listEntry = await getMediaListEntry(userId, media.id, token);
+  // 2. Use the list entry returned by the search query directly — avoids a
+  //    second API call and prevents false "not in list" for ongoing manga.
+  const listEntry = media.mediaListEntry ?? null;
 
   // 3. Duplicate prevention — don't update if already at or past this chapter
   if (listEntry && listEntry.progress >= chapterInt) {
@@ -386,12 +387,23 @@ async function handleMessage(message, sender) {
       const token = await getToken();
       const userId = await getUserId();
 
+      console.log('[GET_MANGA_INFO] title:', title, '| userId:', userId, '| hasToken:', !!token);
+
       if (!token || !userId) return { error: 'not_authenticated' };
 
       const media = await searchManga(title, token);
+      console.log('[GET_MANGA_INFO] media found:', media?.id, media?.title?.english || media?.title?.romaji, '| mediaListEntry:', media?.mediaListEntry);
+
       if (!media) return { error: 'not_found' };
 
-      const listEntry = await getMediaListEntry(userId, media.id, token);
+      let listEntry = media.mediaListEntry ?? null;
+
+      if (listEntry === null) {
+        listEntry = await getMediaListEntry(userId, media.id, token);
+        console.log('[GET_MANGA_INFO] fallback getMediaListEntry result:', listEntry);
+      }
+
+      console.log('[GET_MANGA_INFO] returning listEntry:', listEntry);
       return { media, listEntry };
     }
 

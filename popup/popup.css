@@ -406,6 +406,9 @@ body {
 /* ---- Action row ---- */
 .action-row {
   margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* ---- Buttons ---- */
@@ -441,7 +444,14 @@ body {
   border: 1px solid var(--accent);
   color: var(--accent);
 }
-.btn-outline:hover { background: var(--accent-muted); }
+.btn-outline:hover:not(:disabled) { background: var(--accent-muted); }
+.btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Spinner inside an outline button uses accent color instead of white */
+.spinner-accent {
+  border-color: rgba(2, 169, 255, 0.3);
+  border-top-color: var(--accent);
+}
 
 .btn-ghost {
   background: transparent;
@@ -496,8 +506,6 @@ body {
 
 .log-list {
   padding: 0 14px 10px;
-  max-height: 140px;
-  overflow-y: auto;
 }
 .log-list .hint { padding: 4px 0; }
 

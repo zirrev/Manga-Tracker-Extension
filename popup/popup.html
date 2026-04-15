@@ -149,6 +149,10 @@
         <span id="mark-read-text">Mark as Read</span>
         <span id="mark-read-spinner" class="spinner hidden"></span>
       </button>
+      <button id="mark-prev-btn" class="btn btn-outline btn-full hidden" disabled>
+        <span id="mark-prev-text">Mark Previous as Read</span>
+        <span id="mark-prev-spinner" class="spinner spinner-accent hidden"></span>
+      </button>
     </div>
 
     <!-- Inline feedback -->
@@ -165,13 +169,13 @@
 
     <!-- Sync Log -->
     <div class="panel panel-log" id="log-panel">
-      <button class="panel-toggle" id="log-toggle" aria-expanded="true">
+      <button class="panel-toggle" id="log-toggle" aria-expanded="false">
         <span>Recent Syncs</span>
         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="18 15 12 9 6 15"/>
         </svg>
       </button>
-      <div id="log-list" class="log-list">
+      <div id="log-list" class="log-list hidden">
         <p id="log-empty" class="hint">No syncs yet.</p>
       </div>
     </div>
