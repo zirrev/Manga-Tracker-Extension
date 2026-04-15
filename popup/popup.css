@@ -461,6 +461,8 @@ body {
 
 .btn-sm { font-size: 12px; padding: 5px 12px; }
 
+.btn-jump { margin-top: 8px; }
+
 /* ---- Feedback banner ---- */
 .feedback {
   padding: 8px 12px;

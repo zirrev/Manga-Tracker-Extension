@@ -52,6 +52,7 @@
   // Inline start-tracking buttons (next to title)
   const inlineTrackBtn = $('inline-track-btn');
   const seriesTrackBtn = $('series-track-btn');
+  const seriesJumpBtn  = $('series-jump-btn');
 
   // Actions
   const markReadBtn     = $('mark-read-btn');
@@ -84,6 +85,7 @@
   let listEntry    = null; // AniList MediaList entry
   let pendingAdd   = null; // { mediaId, title, chapter, siteKey } — waiting for add-to-list confirm
   let settings     = null;
+  let currentTabId = null;
 
   const SITE_LABELS = {
     weebcentral: 'WeebCentral',
@@ -166,6 +168,7 @@
   async function loadCurrentTab() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) return;
+    currentTabId = tab.id;
 
     // Ask content script for current chapter info
     try {
@@ -197,6 +200,7 @@
       seriesSiteBadge.textContent = SITE_LABELS[site] || site;
       setMarkReadDisabled('Open a chapter to mark as read');
       seriesTrackBtn.classList.add('hidden');
+      seriesJumpBtn.classList.add('hidden');
       $('series-progress-row').classList.add('hidden');
       if (info?.title) {
         seriesTitle.textContent = info.title;
@@ -344,6 +348,7 @@
       if (!listEntry) {
         seriesTrackBtn.classList.remove('hidden');
         $('series-progress-row').classList.add('hidden');
+        seriesJumpBtn.classList.add('hidden');
       } else {
         seriesTrackBtn.classList.add('hidden');
         $('series-progress-row').classList.remove('hidden');
@@ -355,6 +360,13 @@
       seriesProgress.textContent = totalChapters
         ? `Ch. ${currentProgress} / ${totalChapters}`
         : `Ch. ${currentProgress} / Ongoing`;
+
+      if (listEntry) {
+        const nextChapter = currentProgress + 1;
+        seriesJumpBtn.textContent = `Continue Reading: Ch. ${nextChapter}`;
+        seriesJumpBtn.dataset.targetChapter = nextChapter;
+        seriesJumpBtn.classList.remove('hidden');
+      }
 
     } catch {
       seriesProgress.textContent = 'Error loading';
@@ -455,6 +467,15 @@
 
   inlineTrackBtn.addEventListener('click', () => startTracking(chapterInfo?.chapter));
   seriesTrackBtn.addEventListener('click', () => startTracking(null));
+
+  seriesJumpBtn.addEventListener('click', () => {
+    const target = parseInt(seriesJumpBtn.dataset.targetChapter, 10);
+    if (!target || !currentTabId) return;
+    chrome.tabs.sendMessage(currentTabId, {
+      type: 'JUMP_TO_CHAPTER',
+      targetChapter: target,
+    }).catch(() => {});
+  });
 
   markReadBtn.addEventListener('click', async () => {
     if (!chapterInfo?.title || chapterInfo.chapter == null) return;

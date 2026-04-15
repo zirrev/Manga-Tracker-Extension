@@ -300,6 +300,78 @@
   window.addEventListener('popstate', () => setTimeout(checkUrlChange, 200));
 
   // ---------------------------------------------------------------------------
+  // Jump to chapter on series pages
+  // ---------------------------------------------------------------------------
+
+  function pickClosestChapterOption(items, getText, targetChapter) {
+    let best = null;
+    let bestDiff = Infinity;
+    for (const item of items) {
+      const text = getText(item).trim();
+      // Try most-specific patterns first, fall back to any leading number
+      const m = text.match(/(?:Chapter|Ch\.?|#)\s*([\d.]+)/i)
+             || text.match(/^([\d.]+)/);
+      if (!m) continue;
+      const num = parseFloat(m[1]);
+      if (isNaN(num)) continue;
+      const diff = Math.abs(num - targetChapter);
+      if (diff < bestDiff) { bestDiff = diff; best = item; }
+    }
+    return best;
+  }
+
+  function jumpToChapter(targetChapter) {
+    if (site === SITES.WEEBCENTRAL) {
+      jumpToChapterWeebCentral(targetChapter);
+    } else if (site === SITES.MANGADEX) {
+      const links = Array.from(document.querySelectorAll('a[href*="/chapter/"]'));
+      const best = pickClosestChapterOption(links, a => a.textContent, targetChapter);
+      if (best) best.click();
+    }
+    // MangaPlus doesn't have a standard chapter-select page
+  }
+
+  function jumpToChapterWeebCentral(targetChapter) {
+    const currentLinks = Array.from(document.querySelectorAll('a[href*="/chapters/"]'));
+
+    // Find the "Show All Chapters" button — it sits between the latest and earliest
+    // visible chapters and loads the full list via HTMX when clicked.
+    const showAllBtn = Array.from(document.querySelectorAll('button, a')).find(
+      el => /show\s+all\s+chapters?/i.test(el.textContent.trim())
+    );
+
+    if (!showAllBtn) {
+      // Button not found — fall back to whatever links are visible
+      const best = pickClosestChapterOption(currentLinks, a => a.textContent, targetChapter);
+      if (best) window.location.href = best.href;
+      return;
+    }
+
+    // Watch for new chapter links to appear after the HTMX load
+    const observer = new MutationObserver(() => {
+      const newLinks = Array.from(document.querySelectorAll('a[href*="/chapters/"]'));
+      if (newLinks.length <= currentLinks.length) return; // still loading
+
+      observer.disconnect();
+      clearTimeout(fallbackTimer);
+
+      const best = pickClosestChapterOption(newLinks, a => a.textContent, targetChapter);
+      if (best) window.location.href = best.href;
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Safety fallback: if nothing loads within 4s, use current visible links
+    const fallbackTimer = setTimeout(() => {
+      observer.disconnect();
+      const best = pickClosestChapterOption(currentLinks, a => a.textContent, targetChapter);
+      if (best) window.location.href = best.href;
+    }, 4000);
+
+    showAllBtn.click();
+  }
+
+  // ---------------------------------------------------------------------------
   // Notify popup of current state
   // ---------------------------------------------------------------------------
 
@@ -328,6 +400,12 @@
         isChapterPage: isChapterPage(url, site),
         isSeriesPage: isSeriesPage(url, site),
       });
+      return false;
+    }
+
+    if (message.type === 'JUMP_TO_CHAPTER') {
+      jumpToChapter(message.targetChapter);
+      sendResponse({ ok: true });
       return false;
     }
 
