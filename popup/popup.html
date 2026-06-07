@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AniList Manga Tracker</title>
+  <title>AniList Tracker</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -13,7 +13,7 @@
   <header class="header">
     <div class="header-left">
       <span class="logo">AL</span>
-      <span class="app-name">Manga Tracker</span>
+      <span class="app-name">AL Tracker</span>
     </div>
     <div class="header-right">
       <button id="refresh-btn" class="icon-btn" aria-label="Refresh detection" title="Refresh">
@@ -57,7 +57,7 @@
   =============================== -->
   <section id="login-screen" class="screen hidden">
     <div class="login-card">
-      <p class="login-desc">Connect your AniList account to automatically track your manga progress.</p>
+      <p class="login-desc">Connect your AniList account to automatically track your manga and anime progress.</p>
       <button id="login-btn" class="btn btn-primary">
         Login with AniList
       </button>
@@ -74,8 +74,9 @@
       <div class="panel-inner">
         <div id="not-on-site" class="state-msg hidden">
           <span class="state-icon">📖</span>
-          <p>Open a supported manga site to start tracking.</p>
+          <p>Open a supported site to start tracking.</p>
           <p class="hint">WeebCentral · MangaDex · MangaPlus</p>
+          <p class="hint">AniWatchTV · HiAnime</p>
         </div>
 
         <div id="not-chapter" class="state-msg hidden">
@@ -110,7 +111,7 @@
             <button id="inline-track-btn" class="btn btn-track-inline hidden">Start Tracking</button>
           </div>
           <div class="chapter-row">
-            <span class="label">Reading</span>
+            <span id="reading-label" class="label">Reading</span>
             <span id="detected-chapter" class="chapter-num">—</span>
           </div>
         </div>
@@ -163,7 +164,7 @@
 
     <!-- Add to List Prompt -->
     <div id="add-to-list-prompt" class="panel panel-prompt hidden">
-      <p>This manga isn't in your AniList. Add it?</p>
+      <p id="add-to-list-prompt-text">This title isn't in your AniList. Add it?</p>
       <div class="prompt-actions">
         <button id="confirm-add-btn" class="btn btn-primary btn-sm">Add</button>
         <button id="dismiss-add-btn" class="btn btn-ghost btn-sm">Dismiss</button>

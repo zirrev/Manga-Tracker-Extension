@@ -9,7 +9,7 @@ export const ANILIST_OAUTH_URL = 'https://anilist.co/api/v2/oauth/authorize';
 
 const SEARCH_MANGA_QUERY = `
   query SearchManga($search: String!) {
-    Media(search: $search, type: MANGA, isAdult: false) {
+    Media(search: $search, type: MANGA) {
       id
       title {
         romaji
@@ -39,7 +39,7 @@ const SEARCH_MANGA_QUERY = `
 const SEARCH_MANGA_PAGE_QUERY = `
   query SearchMangaAll($search: String!) {
     Page(perPage: 10) {
-      media(search: $search, type: MANGA, isAdult: false) {
+      media(search: $search, type: MANGA) {
         id
         title {
           romaji
@@ -65,6 +65,35 @@ const SEARCH_MANGA_PAGE_QUERY = `
   }
 `;
 
+const SEARCH_ANIME_PAGE_QUERY = `
+  query SearchAnimeAll($search: String!) {
+    Page(perPage: 10) {
+      media(search: $search, type: ANIME) {
+        id
+        title {
+          romaji
+          english
+          native
+          userPreferred
+        }
+        episodes
+        status
+        coverImage {
+          medium
+          color
+        }
+        siteUrl
+        mediaListEntry {
+          id
+          status
+          progress
+          score
+        }
+      }
+    }
+  }
+`;
+
 const GET_MEDIA_LIST_ENTRY_QUERY = `
   query GetMediaListEntry($mediaId: Int!, $userId: Int!) {
     MediaList(mediaId: $mediaId, userId: $userId) {
@@ -72,6 +101,64 @@ const GET_MEDIA_LIST_ENTRY_QUERY = `
       status
       progress
       score
+    }
+  }
+`;
+
+const SEARCH_USER_MANGA_LIST_QUERY = `
+  query SearchUserMangaList($userId: Int!, $search: String!) {
+    Page(perPage: 10) {
+      mediaList(userId: $userId, type: MANGA, search: $search) {
+        id
+        status
+        progress
+        score
+        media {
+          id
+          title {
+            romaji
+            english
+            native
+            userPreferred
+          }
+          chapters
+          status
+          coverImage {
+            medium
+            color
+          }
+          siteUrl
+        }
+      }
+    }
+  }
+`;
+
+const SEARCH_USER_ANIME_LIST_QUERY = `
+  query SearchUserAnimeList($userId: Int!, $search: String!) {
+    Page(perPage: 10) {
+      mediaList(userId: $userId, type: ANIME, search: $search) {
+        id
+        status
+        progress
+        score
+        media {
+          id
+          title {
+            romaji
+            english
+            native
+            userPreferred
+          }
+          episodes
+          status
+          coverImage {
+            medium
+            color
+          }
+          siteUrl
+        }
+      }
     }
   }
 `;
@@ -223,6 +310,82 @@ export function pickBestMedia(results, chapterHint = null) {
 
   // Nothing tracked — best we can do is first candidate.
   return candidates[0];
+}
+
+/**
+ * Search for anime by title and return all results (up to 10).
+ * @param {string} title
+ * @param {string} [accessToken]
+ * @returns {Promise<object[]>}
+ */
+export async function searchAnimeAll(title, accessToken = null) {
+  try {
+    const data = await graphql(SEARCH_ANIME_PAGE_QUERY, { search: title }, accessToken);
+    return data.Page?.media || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Pick the best anime match from search results using the same heuristics as
+ * pickBestMedia, but checking `episodes` instead of `chapters`.
+ * @param {object[]} results
+ * @param {number|null} episodeHint
+ * @returns {object|null}
+ */
+export function pickBestAnime(results, episodeHint = null) {
+  if (!results || results.length === 0) return null;
+  if (results.length === 1) return results[0];
+
+  let candidates = results;
+  if (episodeHint != null && episodeHint > 0) {
+    const compatible = results.filter(m => m.episodes == null || m.episodes >= episodeHint);
+    if (compatible.length > 0) candidates = compatible;
+  }
+
+  const tracked = candidates.filter(m => m.mediaListEntry != null);
+  if (tracked.length === 1) return tracked[0];
+  if (tracked.length > 1) {
+    const ongoing = tracked.filter(m => m.episodes == null);
+    if (ongoing.length === 1) return ongoing[0];
+    return tracked[0];
+  }
+
+  return candidates[0];
+}
+
+/**
+ * Search the user's own manga list by title.
+ * More reliable than relying on mediaListEntry in search results.
+ * @param {number} userId
+ * @param {string} title
+ * @param {string} accessToken
+ * @returns {Promise<object[]>} Array of MediaList entries with nested media
+ */
+export async function searchUserMangaList(userId, title, accessToken) {
+  try {
+    const data = await graphql(SEARCH_USER_MANGA_LIST_QUERY, { userId, search: title }, accessToken);
+    return data.Page?.mediaList || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Search the user's own anime list by title.
+ * @param {number} userId
+ * @param {string} title
+ * @param {string} accessToken
+ * @returns {Promise<object[]>}
+ */
+export async function searchUserAnimeList(userId, title, accessToken) {
+  try {
+    const data = await graphql(SEARCH_USER_ANIME_LIST_QUERY, { userId, search: title }, accessToken);
+    return data.Page?.mediaList || [];
+  } catch {
+    return [];
+  }
 }
 
 /**

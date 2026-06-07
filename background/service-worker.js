@@ -1,7 +1,7 @@
 // AniList Manga Tracker — Service Worker (Manifest V3)
 // Handles: OAuth, AniList API calls, storage management, notifications
 
-import { getCurrentUser, searchManga, searchMangaAll, pickBestMedia, updateProgress, updateScore, getMediaListEntry } from '../utils/anilist.js';
+import { getCurrentUser, searchManga, searchMangaAll, pickBestMedia, searchAnimeAll, pickBestAnime, updateProgress, updateScore, getMediaListEntry, searchUserMangaList, searchUserAnimeList } from '../utils/anilist.js';
 
 const ANILIST_CLIENT_ID = '38967';
 const MAX_SYNC_LOG_ENTRIES = 10;
@@ -242,6 +242,55 @@ async function addToListAndSync({ mediaId, chapter, title, siteKey }) {
 }
 
 // ---------------------------------------------------------------------------
+// Episode update logic (anime)
+// ---------------------------------------------------------------------------
+
+async function syncEpisode({ title, episode, siteKey }) {
+  const token = await getToken();
+  const userId = await getUserId();
+
+  if (!token || !userId) return { success: false, error: 'not_authenticated' };
+
+  const episodeInt = Math.floor(episode);
+  const allResults = await searchAnimeAll(title, token);
+  const media = pickBestAnime(allResults, episodeInt);
+  if (!media) return { success: false, error: 'not_found', title };
+
+  const listEntry = media.mediaListEntry ?? null;
+
+  if (listEntry && listEntry.progress >= episodeInt) {
+    return { success: false, alreadyUpToDate: true, mediaId: media.id, currentProgress: listEntry.progress };
+  }
+
+  if (!listEntry) {
+    return { success: false, notInList: true, media, episode: episodeInt, title };
+  }
+
+  try {
+    await updateProgress(media.id, episodeInt, token);
+    await appendSyncLog({ title, episode: episodeInt, status: 'success', siteKey });
+    return { success: true, mediaId: media.id, progress: episodeInt, title };
+  } catch (err) {
+    await appendSyncLog({ title, episode: episodeInt, status: 'error', error: err.message, siteKey });
+    return { success: false, error: err.message };
+  }
+}
+
+async function addAnimeToListAndSync({ mediaId, episode, title, siteKey }) {
+  const token = await getToken();
+  if (!token) return { success: false, error: 'not_authenticated' };
+
+  try {
+    await updateProgress(mediaId, Math.floor(episode), token, 'CURRENT');
+    await appendSyncLog({ title, episode: Math.floor(episode), status: 'success', siteKey });
+    return { success: true, mediaId, progress: Math.floor(episode), title };
+  } catch (err) {
+    await appendSyncLog({ title, episode: Math.floor(episode), status: 'error', error: err.message, siteKey });
+    return { success: false, error: err.message };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Notifications
 // ---------------------------------------------------------------------------
 
@@ -338,6 +387,81 @@ async function handleMessage(message, sender) {
       };
     }
 
+    // ---- Anime: credits detection + sync (from content script) ----
+    case 'VIDEO_CREDITS_REACHED': {
+      const { title, episode, siteKey } = message;
+      const result = await syncEpisode({ title, episode, siteKey });
+
+      if (result.success) {
+        setBadge('✓', '#02A9FF');
+        await showNotification(
+          'AniList Updated',
+          `${title} — Ep. ${Math.floor(episode)} synced`
+        );
+      } else if (result.error && result.error !== 'not_found' && !result.notInList) {
+        setBadge('!', '#E63946');
+        await showNotification('Sync Failed', result.error || 'Unknown error', 'error');
+      }
+
+      return result;
+    }
+
+    // ---- Anime: manual mark as watched (from popup) ----
+    case 'MARK_AS_WATCHED': {
+      const { title, episode, siteKey } = message;
+      const result = await syncEpisode({ title, episode, siteKey });
+
+      if (result.success) {
+        await showNotification('AniList Updated', `${title} — Ep. ${Math.floor(episode)} synced`);
+      } else if (result.error && !result.alreadyUpToDate && !result.notInList) {
+        await showNotification('Sync Failed', result.error, 'error');
+      }
+
+      return result;
+    }
+
+    // ---- Anime: add to list + sync ----
+    case 'ADD_ANIME_TO_LIST': {
+      const result = await addAnimeToListAndSync(message);
+      if (result.success) {
+        await showNotification(
+          'Added to AniList',
+          `${message.title} added and Ep. ${message.episode} synced`
+        );
+      }
+      return result;
+    }
+
+    // ---- Anime: AniList data fetch (for popup) ----
+    case 'GET_ANIME_INFO': {
+      const { title, episode: episodeHint = null } = message;
+      const token = await getToken();
+      const userId = await getUserId();
+
+      if (!token || !userId) return { error: 'not_authenticated' };
+
+      const allResults = await searchAnimeAll(title, token);
+      const media = pickBestAnime(allResults, episodeHint != null ? Math.floor(episodeHint) : null);
+      if (!media) return { error: 'not_found' };
+
+      let listEntry = media.mediaListEntry ?? null;
+
+      if (listEntry === null) {
+        listEntry = await getMediaListEntry(userId, media.id, token);
+      }
+
+      if (listEntry === null) {
+        const userListResults = await searchUserAnimeList(userId, title, token);
+        const match = userListResults.find(e => e.media?.id === media.id)
+                   ?? (userListResults.length === 1 ? userListResults[0] : null);
+        if (match) {
+          listEntry = { id: match.id, status: match.status, progress: match.progress, score: match.score };
+        }
+      }
+
+      return { media, listEntry };
+    }
+
     // ---- Chapter detection + sync (from content script) ----
     case 'SCROLL_THRESHOLD_REACHED': {
       const { title, chapter, siteKey } = message;
@@ -391,26 +515,31 @@ async function handleMessage(message, sender) {
       const token = await getToken();
       const userId = await getUserId();
 
-      console.log('[GET_MANGA_INFO] title:', title, '| chapterHint:', chapterHint, '| userId:', userId, '| hasToken:', !!token);
-
       if (!token || !userId) return { error: 'not_authenticated' };
 
-      // Search all results and pick the best match using tracking status and
-      // chapter count — avoids picking a one-shot over the ongoing series.
       const allResults = await searchMangaAll(title, token);
       const media = pickBestMedia(allResults, chapterHint != null ? Math.floor(chapterHint) : null);
-      console.log('[GET_MANGA_INFO] media found:', media?.id, media?.title?.english || media?.title?.romaji, '| mediaListEntry:', media?.mediaListEntry);
 
       if (!media) return { error: 'not_found' };
 
       let listEntry = media.mediaListEntry ?? null;
 
+      // Fallback 1: direct MediaList query by media ID
       if (listEntry === null) {
         listEntry = await getMediaListEntry(userId, media.id, token);
-        console.log('[GET_MANGA_INFO] fallback getMediaListEntry result:', listEntry);
       }
 
-      console.log('[GET_MANGA_INFO] returning listEntry:', listEntry);
+      // Fallback 2: search the user's own list by title — handles cases where
+      // the global search returns the right media but mediaListEntry is missing
+      if (listEntry === null) {
+        const userListResults = await searchUserMangaList(userId, title, token);
+        const match = userListResults.find(e => e.media?.id === media.id)
+                   ?? (userListResults.length === 1 ? userListResults[0] : null);
+        if (match) {
+          listEntry = { id: match.id, status: match.status, progress: match.progress, score: match.score };
+        }
+      }
+
       return { media, listEntry };
     }
 

@@ -4,6 +4,7 @@ export const SITES = {
   WEEBCENTRAL: 'weebcentral',
   MANGADEX: 'mangadex',
   MANGAPLUS: 'mangaplus',
+  ATSU: 'atsu',
 };
 
 export const SITE_CONFIG = {
@@ -26,6 +27,13 @@ export const SITE_CONFIG = {
     domains: ['mangaplus.shueisha.co.jp'],
     // MangaPlus chapter URLs: /viewer/{chapter_id}
     chapterUrlPattern: /mangaplus\.shueisha\.co\.jp\/viewer\/(\d+)/,
+  },
+  [SITES.ATSU]: {
+    name: 'Atsu',
+    domains: ['atsu.moe'],
+    // Atsu reader URLs: /read/{seriesId}/{chapterId}
+    chapterUrlPattern: /atsu\.moe\/read\/([A-Za-z0-9]+)\/([A-Za-z0-9]+)/,
+    seriesUrlPattern: /atsu\.moe\/manga\/([A-Za-z0-9]+)/,
   },
 };
 

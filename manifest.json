@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AniList Manga Tracker",
+  "name": "AniList Tracker",
   "version": "1.0.0",
-  "description": "Automatically track your manga reading progress on AniList",
+  "description": "Automatically track your manga and anime progress on AniList",
 
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAshfXEhRsWscULbJLBk81gWoLDXodx+2SjYManO7IH+twfIYcp7WxBYsz3Mk2toz3PFxKN+AZ2/rRo7KehGqT8dnK1+06aTlfk/SJDau8s/llKLRTSnpCPdkkuy39YvkNcptfjdRLhOFw3ExXq9KKeR9zvQK4HjKziazCXsl18NAshJcfx9v/nKvKi1MauGvN1Durqe6l84nVRuXuLCLeM+EVZ8se0d63oM0O07Gm9Q/o40BmedQejSRqi9Fr4vqNYJ/5TRAbl7jXzIugKzmlrkvy53G4dpegrx3hsOTuY5kKiIxbpdj9XJYMKZoqyfM/NBM2fnbBpXYpWA2ao1+SSwIDAQAB",
 
@@ -19,6 +19,9 @@
     "https://weebcentral.com/*",
     "https://mangadex.org/*",
     "https://mangaplus.shueisha.co.jp/*",
+    "https://atsu.moe/*",
+    "https://aniwatchtv.to/*",
+    "https://hianime.to/*",
     "https://graphql.anilist.co/*",
     "https://anilist.co/*",
     "https://api.mangadex.org/*"
@@ -34,16 +37,25 @@
       "matches": [
         "https://weebcentral.com/*",
         "https://mangadex.org/*",
-        "https://mangaplus.shueisha.co.jp/*"
+        "https://mangaplus.shueisha.co.jp/*",
+        "https://atsu.moe/*"
       ],
       "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://aniwatchtv.to/*",
+        "https://hianime.to/*"
+      ],
+      "js": ["content/anime-content-script.js"],
       "run_at": "document_idle"
     }
   ],
 
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "AniList Manga Tracker"
+    "default_title": "AniList Tracker"
   },
 
   "options_ui": {

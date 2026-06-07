@@ -13,6 +13,7 @@
     WEEBCENTRAL: 'weebcentral',
     MANGADEX: 'mangadex',
     MANGAPLUS: 'mangaplus',
+    ATSU: 'atsu',
   };
 
   const SITE_PATTERNS = {
@@ -28,6 +29,11 @@
     [SITES.MANGAPLUS]: {
       domain: 'mangaplus.shueisha.co.jp',
       chapterPattern: /mangaplus\.shueisha\.co\.jp\/viewer\/(\d+)/,
+    },
+    [SITES.ATSU]: {
+      domain: 'atsu.moe',
+      chapterPattern: /atsu\.moe\/read\/([A-Za-z0-9]+\/[A-Za-z0-9]+)/,
+      seriesPattern: /atsu\.moe\/manga\/([A-Za-z0-9]+)/,
     },
   };
 
@@ -55,6 +61,15 @@
   }
 
   function extractSeriesTitleFromDOM(site) {
+    if (site === SITES.ATSU) {
+      // Series page: try heading, then page title before the pipe/dash
+      const h1 = document.querySelector('h1, h2');
+      if (h1) return h1.textContent.trim();
+      const m = document.title.match(/^(.+?)\s*[-–|]/);
+      if (m) return m[1].trim();
+      return null;
+    }
+
     if (site === SITES.WEEBCENTRAL) {
       // Primary: extract title from the URL slug (/series/ID/Blue-Box → "Blue Box").
       // This is more reliable than the H1, which often contains extra text nodes
@@ -83,6 +98,29 @@
   function parseMangaInfoFromDOM(site) {
     let title = null;
     let chapter = null;
+
+    if (site === SITES.ATSU) {
+      // Page title format examples:
+      //   "Sakamoto Days - Chapter 1 | Atsu"
+      //   "Sakamoto Days Ch. 1 | Atsu"
+      const ptMatch = document.title.match(/^(.+?)\s*[-–]\s*(?:Chapter|Ch\.?)\s*([\d.]+)/i);
+      if (ptMatch) {
+        title = ptMatch[1].trim();
+        chapter = parseFloat(ptMatch[2]);
+      }
+
+      // Fallback: h1/h2 for title
+      if (!title) {
+        const heading = document.querySelector('h1, h2, .manga-title, .series-title, .reader-title');
+        if (heading) title = heading.textContent.trim();
+      }
+
+      // Fallback: series link in reader (back-link to /manga/)
+      if (!title) {
+        const seriesLink = document.querySelector('a[href*="/manga/"]');
+        if (seriesLink) title = seriesLink.textContent.trim();
+      }
+    }
 
     if (site === SITES.WEEBCENTRAL) {
       // WeebCentral page title format: "Chapter N | Series Name | Weeb Central"
@@ -327,6 +365,10 @@
       const links = Array.from(document.querySelectorAll('a[href*="/chapter/"]'));
       const best = pickClosestChapterOption(links, a => a.textContent, targetChapter);
       if (best) best.click();
+    } else if (site === SITES.ATSU) {
+      const links = Array.from(document.querySelectorAll('a[href*="/read/"]'));
+      const best = pickClosestChapterOption(links, a => a.textContent, targetChapter);
+      if (best) window.location.href = best.href;
     }
     // MangaPlus doesn't have a standard chapter-select page
   }
