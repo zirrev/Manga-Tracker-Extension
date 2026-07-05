@@ -94,6 +94,7 @@
     mangaplus: 'MangaPlus',
     aniwatchtv: 'AniWatchTV',
     hianime: 'HiAnime',
+    atsu: 'Atsu',
   };
 
   const ANIME_SITE_KEYS = new Set(['aniwatchtv', 'hianime']);
@@ -204,14 +205,12 @@
     // Update mediaType based on what the content script reported
     mediaType = mt === 'ANIME' ? 'ANIME' : (ANIME_SITE_KEYS.has(site) ? 'ANIME' : 'MANGA');
 
-    // Update context-sensitive labels for anime vs manga
-    const seriesPageLabel = document.querySelector('.series-page-label');
-    if (seriesPageLabel) {
-      seriesPageLabel.textContent = isAnime() ? 'Series' : 'Chapter Select';
-    }
-    const readingLabel = $('reading-label');
-    if (readingLabel) {
-      readingLabel.textContent = isAnime() ? 'Watching' : 'Reading';
+    // Anime tracking UI is not yet enabled — show unsupported state and bail out.
+    if (mediaType === 'ANIME') {
+      showDetectionState('not-on-site');
+      resetProgress();
+      setMarkReadDisabled('Anime tracking coming soon');
+      return;
     }
 
     chapterInfo = info ? { ...info, isChapterPage } : null;

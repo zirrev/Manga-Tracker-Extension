@@ -360,57 +360,66 @@
 
   function jumpToChapter(targetChapter) {
     if (site === SITES.WEEBCENTRAL) {
-      jumpToChapterWeebCentral(targetChapter);
+      jumpToChapterWithShowAll(targetChapter, 'a[href*="/chapters/"]');
+    } else if (site === SITES.ATSU) {
+      // Narrow to this manga's links only — atsu uses /read/{seriesId}/{chapterId}
+      // and other manga may appear on the page with the same /read/ prefix.
+      const anyLink = document.querySelector('a[href*="/read/"]');
+      const seriesMatch = anyLink?.href.match(/\/read\/([^/?#]+)\//);
+      const selector = seriesMatch
+        ? `a[href*="/read/${seriesMatch[1]}/"]`
+        : 'a[href*="/read/"]';
+      jumpToChapterWithShowAll(targetChapter, selector);
     } else if (site === SITES.MANGADEX) {
       const links = Array.from(document.querySelectorAll('a[href*="/chapter/"]'));
       const best = pickClosestChapterOption(links, a => a.textContent, targetChapter);
       if (best) best.click();
-    } else if (site === SITES.ATSU) {
-      const links = Array.from(document.querySelectorAll('a[href*="/read/"]'));
-      const best = pickClosestChapterOption(links, a => a.textContent, targetChapter);
-      if (best) window.location.href = best.href;
     }
     // MangaPlus doesn't have a standard chapter-select page
   }
 
-  function jumpToChapterWeebCentral(targetChapter) {
-    const currentLinks = Array.from(document.querySelectorAll('a[href*="/chapters/"]'));
+  // Shared jump logic for sites that hide older chapters behind a "Show All Chapters" button.
+  function jumpToChapterWithShowAll(targetChapter, linkSelector) {
+    const currentLinks = Array.from(document.querySelectorAll(linkSelector));
 
-    // Find the "Show All Chapters" button — it sits between the latest and earliest
-    // visible chapters and loads the full list via HTMX when clicked.
     const showAllBtn = Array.from(document.querySelectorAll('button, a')).find(
       el => /show\s+all\s+chapters?/i.test(el.textContent.trim())
     );
 
     if (!showAllBtn) {
-      // Button not found — fall back to whatever links are visible
       const best = pickClosestChapterOption(currentLinks, a => a.textContent, targetChapter);
       if (best) window.location.href = best.href;
       return;
     }
 
-    // Watch for new chapter links to appear after the HTMX load
-    const observer = new MutationObserver(() => {
-      const newLinks = Array.from(document.querySelectorAll('a[href*="/chapters/"]'));
-      if (newLinks.length <= currentLinks.length) return; // still loading
-
-      observer.disconnect();
-      clearTimeout(fallbackTimer);
-
-      const best = pickClosestChapterOption(newLinks, a => a.textContent, targetChapter);
-      if (best) window.location.href = best.href;
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Safety fallback: if nothing loads within 4s, use current visible links
-    const fallbackTimer = setTimeout(() => {
-      observer.disconnect();
-      const best = pickClosestChapterOption(currentLinks, a => a.textContent, targetChapter);
-      if (best) window.location.href = best.href;
-    }, 4000);
-
     showAllBtn.click();
+
+    // Poll until the chapter link count stops growing, then pick the best match.
+    let lastCount = currentLinks.length;
+    let stableTicks = 0;
+
+    const poll = setInterval(() => {
+      const links = Array.from(document.querySelectorAll(linkSelector));
+      if (links.length > lastCount) {
+        lastCount = links.length;
+        stableTicks = 0;
+      } else {
+        stableTicks++;
+        if (stableTicks >= 3) { // stable for ~1.5 s
+          clearInterval(poll);
+          clearTimeout(hardTimeout);
+          const best = pickClosestChapterOption(links, a => a.textContent, targetChapter);
+          if (best) window.location.href = best.href;
+        }
+      }
+    }, 500);
+
+    const hardTimeout = setTimeout(() => {
+      clearInterval(poll);
+      const links = Array.from(document.querySelectorAll(linkSelector));
+      const best = pickClosestChapterOption(links, a => a.textContent, targetChapter);
+      if (best) window.location.href = best.href;
+    }, 8000);
   }
 
   // ---------------------------------------------------------------------------

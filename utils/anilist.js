@@ -404,7 +404,7 @@ export async function getMediaListEntry(userId, mediaId, accessToken) {
     return null;
   }
 }
-
+ 
 /**
  * Update the user's progress for a manga.
  * If the entry doesn't exist yet, status defaults to CURRENT.
